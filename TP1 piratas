@@ -1,0 +1,117 @@
+
+type Nombre=[Char]
+type Tesoro=( Nombre,Valor)
+type Botin= [Tesoro]
+type Pirata= (Nombre,Botin)
+type Saqueo= (Tesoro->Bool)
+
+type Tripulantes=[Pirata]
+type Barco= (Nombre,Saqueo,Tripulantes)
+type Isla=(Nombre,Tesoro)
+type Ciudad=(Nombre,Botin)
+
+--TESOROS PIRATAS
+
+--funcion cantidad tesoros un pirata
+
+cantidadTesoros:: Pirata->Int
+cantidadTesoros (_,botin)= length botin
+
+--funcion pirta afortunado
+
+valorDelTesoro:: Tesoro-> Valor
+valorDelTesoro (_,valor)=valor
+
+listaValorBotin:: Botin-> [Valor]
+listaValorBotin botin= map valorDelTesoro botin
+
+valorTotalBotin:: Botin-> Valor
+valorTotalBotin botin = sum (listaValorBotin botin)
+
+esAfortunado:: Pirata-> Bool
+esAfortunado (_,botin)= valorTotalBotin botin>10000
+
+--funcion piratas mismo tesoro valor distinto
+esMismoTesoroConValorDistinto:: Tesoro->Tesoro->Bool
+esMismoTesoroConValorDistinto (nombre1,valor1) (nombre2,valor2)= (nombre1==nombre2) && (valor1 /= valor2)
+
+loTieneOtroConDistintoValor:: Pirata->Tesoro->Bool
+loTieneOtroConDistintoValor (_,botin) unTesoro= any (esMismoTesoroConValorDistinto unTesoro) botin
+
+tienenMismoTesoroConValorDisntino:: Pirata->Pirata->Bool
+tienenMismoTesoroConValorDisntino (_,botin) otroPirata= any (loTieneOtroConDistintoValor otroPirata) botin
+
+--el valor del tesoro mas valioso de un pirata
+tesoroMasValioso:: Pirata->Valor
+tesoroMasValioso (_,botin)= maximum (listaValorBotin botin)
+
+--adquisicion de nuevo tesoro
+nuevoTesoro:: Pirata->Tesoro->Pirata
+nuevoTesoro (nombre,botin) tesoro=(nombre,botin ++ [tesoro])
+
+--Como queda el pirata luego de perder todos los tesoros valiosos, que son los que tienen un valor mayor a 100.
+noEsTesoroValioso:: Tesoro->Bool
+noEsTesoroValioso (_,valor)= valor<=100
+
+esTesoroValioso:: Tesoro->Bool
+esTesoroValioso = not.noEsTesoroValioso
+
+pierdeTesoros:: Pirata->Pirata
+pierdeTesoros (nombre,botin)= (nombre, filter noEsTesoroValioso botin)
+
+--como queda pirata despues de perder tesoros con un nombre dado
+esMismoNombre:: Tesoro->Tesoro->Bool
+esMismoNombre (nombre1,_) (nombre2,_)= nombre1==nombre2
+
+perderTesoro:: Pirata->Nombre->Pirata
+perderTesoro (nombre,botin) nombretesoro= (nombre,filter(not.esMismoNombre (nombretesoro,0))botin)
+
+--defino ejemplos
+ejemploiBotin= [("Frasco de arena",0),("Brujula",10000)]
+ejemploPirata1= ("Jack Sparrow",[("Brujula",10000),("Frasco de arena",0)])
+ejemploPirata2= ("David Jones",[("Cajita musical",1)])
+ejemploPirata3=("Anne Bonny",[("doblones",100),("Frasco de arena",1)])
+
+--formas de saquear
+saqueoValioso:: Tesoro->Bool
+saqueoValioso tesoro=esTesoroValioso tesoro
+
+saqueoCorazon:: Tesoro->Bool
+saqueoCorazon tesoro= False
+
+saqueoEspecifico:: Nombre->Tesoro->Bool
+saqueoEspecifico palabra (nombre,valor)= (==palabra) nombre
+
+saqueoComplejo::Nombre->Tesoro->Bool
+saqueoComplejo palabra tesoro= saqueoValioso tesoro||saqueoEspecifico palabra tesoro
+
+saquear::Saqueo->Tesoro->Pirata->Pirata
+saquear formaDeSaqueo tesoro (nombre,botin)= (nombre, botin ++ (filter formaDeSaqueo [tesoro]))
+
+--defino ejemeplo
+ejemploBotin1=[("oro",100)]
+--saquear saqueoComplejo oro ("anne bonny",[("doblones",100),("Frasco de arena",1)] =?
+--saquear saqueoCorazon oro ("David Jones",[("Cajita musical",1)])
+--saquear saqueoComplejo oro (""Jack Sparrow",[("Brujula",10000),("Frasco de arena",0)]) 
+
+--Pirata se incorpora a tripulacion
+incorporarPirata:: Barco-> Pirata->Barco
+incorporarPirata (nombre,saqueo,tripulantes) pirata= (nombre,saqueo,tripulantes ++ [pirata])
+
+--Un pirata abandona la tripulación de un barco
+abandonarPirata:: Barco->Pirata->Barco
+abandonarPirata (nombre,saqueo,tripulantes) pirata= (nombre,saqueo,filter (/=pirata) tripulantes)
+
+--ejemplo barcos
+--ejemploBarco1=("Perla Negra",saqueoValioso,[ejemploPirata1,ejemploPirata3])
+--ejemploBarco2=("Holandes Errante",saqueoCorazon ,[ejemploPirata2])
+--ejemploPirata4=("Elizabeth Swann",[("moneda",100),("Espada de Hierro",50)])
+--incorporarPirata ejemploBarco1 ejemploPirata4
+
+--anclar en isla deshabitada
+anclarIsla::Barco->Isla->Barco
+anclarIsla (nombre,saqueo,tripulantes) (_,tesoro)=(nombre,saqueo,map(saquear saqueo tesoro) tripulantes)
+
+--atacar una ciudad
+atacarCiudad::Barco->Ciudad->Barco
+atacarCiudad (nombre,saqueo,tripulantes) (_,botin)= (nombre,saqueo,zipWith (saquear saqueo) botin tripulantes)
